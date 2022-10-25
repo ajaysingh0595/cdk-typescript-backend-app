@@ -5,6 +5,7 @@ import { Runtime, FunctionUrlAuthType } from "aws-cdk-lib/aws-lambda"
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs"
 import * as path from "path"
 import * as apigw from "aws-cdk-lib/aws-apigateway"
+import { CONFIG } from "../functions/config"
 export class CdkTypescriptStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props)
@@ -20,9 +21,15 @@ export class CdkTypescriptStack extends Stack {
       entry: path.join(__dirname, `/../functions/taskFunction.ts`),
       environment: {
         TASK_TABLE_NAME: table.tableName,
+        JWT_TOKEN_SECRET: CONFIG.JWT_TOKEN_SECRET,
       },
     }
     //*** */ Lambda function handler ***
+    const login = new NodejsFunction(this, "LoginHandler", {
+      ...taskFunction,
+      handler: "login",
+    })
+
     const createTask = new NodejsFunction(this, "TaskCreateHandler", {
       ...taskFunction,
       handler: "createTask",
@@ -70,15 +77,19 @@ export class CdkTypescriptStack extends Stack {
     table.grantReadWriteData(updateStatusTask)
     table.grantReadWriteData(assignTask)
 
-    const myFunctionUrl = createTask.addFunctionUrl({
-      authType: FunctionUrlAuthType.NONE,
-      cors: {
-        allowedOrigins: ["*"],
-      },
-    })
-    ///***** */ API gtw root add here************
+    // only for lambda function ENDPOINT
+    // const myFunctionUrl = createTask.addFunctionUrl({
+    //   authType: FunctionUrlAuthType.NONE,
+    //   cors: {
+    //     allowedOrigins: ["*"],
+    //   },
+    // })
+    ///***** */ API gtw route add here************
 
     const api = new apigw.RestApi(this, "task-api")
+    api.root
+      .resourceForPath("login")
+      .addMethod("POST", new apigw.LambdaIntegration(login))
 
     let root = api.root.resourceForPath("task")
     root.addMethod("GET", new apigw.LambdaIntegration(getAllTask))
@@ -114,8 +125,9 @@ export class CdkTypescriptStack extends Stack {
     new CfnOutput(this, "HTTP API URL", {
       value: api.url ?? "Something went wrong with the deploy",
     })
-    new CfnOutput(this, "FunctionUrl", {
-      value: myFunctionUrl.url,
-    })
+    // Lambda public url
+    // new CfnOutput(this, "FunctionUrl", {
+    //   value: myFunctionUrl.url,
+    // })
   }
 }

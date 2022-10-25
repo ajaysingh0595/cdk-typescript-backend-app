@@ -12,7 +12,7 @@ export class Task {
     let RESPONSE = {
       is_error: false,
       statusCode: 200,
-      msg: "Ok",
+      msg: "Well Done! task has been created",
       data: {},
     }
     try {
@@ -26,7 +26,7 @@ export class Task {
         TableName: TABLE_NAME,
         Item: row,
       }
-      this._dynamo
+      await this._dynamo
         .put(params)
         .promise()
         .then((res: any) => console.log(res.Attributes))
@@ -50,6 +50,12 @@ export class Task {
       data: {},
     }
     try {
+      let { data }: any = await this.getTaskById(id)
+
+      if (!data?.id) {
+        throw Error(`please provide valid task ID`)
+      }
+
       await this._dynamo
         .update({
           TableName: TABLE_NAME,
@@ -87,15 +93,19 @@ export class Task {
         CONST.ACTION.CLOSE,
         CONST.ACTION.COMPLETE,
       ]
+      let { data }: any = await this.getTaskById(id)
+      if (!data?.id) {
+        throw Error(`please provide valid task ID`)
+      }
+      // **check for valid action
       if (actionAllow.includes(action) === false) {
         throw Error(`${action}  action not allow`)
       }
 
-      let { data }: any = await this.getTaskById(id)
-
       if (data?.taskStatus === CONST.STATUS.CLOSED) {
         throw Error(`Task already in close state`)
       }
+
       let status = CONST.STATUS.IN_PROGRESS
       if (CONST.ACTION.COMPLETE === action) {
         status = CONST.STATUS.COMPLETED
@@ -237,7 +247,7 @@ export class Task {
     let RESPONSE = {
       is_error: false,
       statusCode: 200,
-      msg: "Ok",
+      msg: "Well Done! Task has been deleted",
       data: {},
     }
     try {
@@ -267,7 +277,7 @@ export class Task {
     let RESPONSE = {
       is_error: false,
       statusCode: 200,
-      msg: "Ok",
+      msg: "Well Done! Task has been assigned",
       data: {},
     }
     try {
